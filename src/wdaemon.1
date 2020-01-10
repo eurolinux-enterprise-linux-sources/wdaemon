@@ -1,0 +1,320 @@
+'\" t
+.\"     Title: wdaemon
+.\"    Author: [see the "AUTHORS" section]
+.\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
+.\"      Date: 05/13/2011
+.\"    Manual: [FIXME: manual]
+.\"    Source: [FIXME: source]
+.\"  Language: English
+.\"
+.TH "WDAEMON" "1" "05/13/2011" "[FIXME: source]" "[FIXME: manual]"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+wdaemon \- Wacom tablet hotplugging emulator
+.SH "SYNOPSIS"
+.sp
+.nf
+wdaemon [options]
+.fi
+.SH "DESCRIPTION"
+.sp
+wdaemon is an application to abstract Wacom tablet hotplugging\&. wdaemon creates virtual input devices using the uinput kernel module and makes them available while at run time keeps looking for specified devices to be plugged in\&.
+.sp
+Instead of looking for the actual device, the X server is configured to look for the emulated device\&. wdaemon will provide the an identical device description, allowing the server to initialize properly\&. Once the physical device is plugged in, wdaemon will forward all events through the emulated device and thus to the X server\&.
+.sp
+For easier recognition, the device name is prefixed with the string "wdaemon"\&. This can be disabled at configure time\&.
+.SH "OPTIONS"
+.PP
+\-h
+.RS 4
+Print a help message
+.RE
+.PP
+\-p
+.RS 4
+Path to the device file to monitor, load to or extract
+.RE
+.PP
+\-t
+.RS 4
+Device type, use \-w to get a list
+.RE
+.PP
+\-c file
+.RS 4
+Use <file> as configuration file\&.
+.RE
+.PP
+\-d N
+.RS 4
+Enable debug messages up to level N
+.RE
+.PP
+\-o file
+.RS 4
+Redirect debug messages to file
+.RE
+.PP
+\-f
+.RS 4
+Fork on start and enter in daemon mode
+.RE
+.PP
+\-w
+.RS 4
+Get a list of supported devices and their numbers
+.RE
+.PP
+\-a
+.RS 4
+Autoconfigure, generate a configuration file based on currently plugged in tablets
+.RE
+.PP
+\-l file
+.RS 4
+Load a device description from file
+.RE
+.PP
+\-x file
+.RS 4
+Extract a device description into file
+.RE
+.PP
+\-s
+.RS 4
+Use syslog for debug messages (conflicts with \-o)
+.RE
+.PP
+\-v
+.RS 4
+Print version number
+.RE
+.SH "CONFIGURATION"
+.sp
+wdaemon requires configuration in the udev(7) system setup, the xorg\&.conf(5) configuration files and finally wdaemon itself\&.
+.SS "UDEV CONFIGURATION"
+.sp
+wdaemon requires a tablet to have a predictable unique device file\&. This is usually accomplished through udev rules\&. For example, on modern systems, a tablet may appear as
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+/dev/input/by\-id/usb\-Tablet_PTZ\-630\-event\-mouse
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+which will point to the event device of a Intuos3 6x8\&. The wdaemon package provides udev rules to create symlinks to known tablet models in the form of
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+/dev/input/wacomX,
+/dev/input/wacom\-tablets/wacom\-<model>\-tabletX and
+/dev/input/wacom\-tablets/wacom\-<model>\-tablet\-<phys path>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The last link provides unique type per USB port\&. Once a tablet reliably appears at a given device path, wdaemon may be configured to use it\&.
+.sp
+The second step consists in creating a persistent name for uinput devices created by wdaemon, so you can configure your xorg\&.conf right\&. An example udev rule to do this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+KERNEL="event*", PROGRAM="/lib/udev/wdaemon_is_uinput\&.sh", \e
+        RESULT="056a\-0000", \e
+        SYMLINK="input/uinput\-devices/uinput\-wacom\-penpartner\-tablet%e"
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This will create a symbolic link for penpartner tablets\&. Notice it needs wdaemon_is_uinput\&.sh script (included in this package)\&. Also included in this package, 11\-uinput\-wacom\&.rules has these rules done for most tablets\&. With the rule in place, a wdaemon\-created device will have predictable device files\&. This makes xorg\&.conf configuration simpler\&.
+.SS "XORG\&.CONF CONFIGURATION"
+.sp
+The X server should be configured to use the devices by wdaemon instead of the actual physical devices\&. An xorg\&.conf(5) section may look like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Section "InputDevice"
+        Identifier "cursor"
+        Driver "wacom"
+        Option "Type" "cursor"
+        Option "Device" "/dev/input/uinput\-devices/uinput\-wacom\-intuos3\-6x8\-tablet"
+        Option "Mode" "relative"
+        Option "Tilt" "on"
+        Option "Threshold" "20"
+        Option "Suppress" "6"
+        Option "USB"    "On"
+EndSection
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Note that if the X server is configured to hotplug devices, it must ignore physical devices in use by wdaemon\&. Example xorg\&.conf\&.d(5) and fdi files are provided with this package\&.
+.SS "WDAEMON CONFIGURATION"
+.sp
+Now wdaemon must be configured to monitor the physical tablet and create matching uinput device\&. A /etc/wdaemon\&.conf for two devices may look like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+device = 36,/dev/input/wacom\-tablets/intuos3\-6x8\-tablet
+device = 6,/dev/input/wacom\-tablets/graphire4\-4x5\-tablet
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Notice the spaces\&. The wdaemon parser is very rudimentary at this point and can get easily confused\&. The device types 36 and 6 can be determined by running
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+wdaemon \-w
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+When wdaemon is started, it will create devices of the types specified in the wdaemon\&.conf configuration file and monitor the device path\&. Whenever the physical tablet appears, wdaemon will forward events from the device to the uinput device\&.
+.sp
+If the device type is unknown to wdaemon, see SAVING AND LOADING DEVICES below\&.
+.SS "AUTO\-CONFIGURATION"
+.sp
+The \-a option was added in 0\&.14 to generate a wdaemon\&.conf based on the currently plugged\-in tablets\&. First, plug in all tablets that should be emulated by wdaemon in the future\&. Then run
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+wdaemon \-a
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This command prints a configuration file that can then be used for wdaemon\&.
+.sp
+Auto\-configuration only works with device types known to wdaemon\&.
+.SS "SAVING AND LOADING DEVICES"
+.sp
+wdaemon has the device descriptions for a number of devices built\-in\&. For devices that are unknown to wdaemon the device description must be gathered from the physical device and loaded on startup\&.
+.sp
+A device description may be extracted with the \-x option:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+wdaemon \-p /dev/input/by\-id/usb\-Tablet_PTZ\-630\-event\-mouse \-x Intuos3_6x8\&.desc
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The resulting device file is a description of the device currently available as /dev/input/event12\&. The description may be loaded again with the \-l option:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+wdaemon \-p /dev/input/by\-id/usb\-Tablet_PTZ\-630\-event\-mouse \-l Intuos3_6x8\&.desc
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+wdaemon will initialize a device based on the description file and forward events from the specified device path\&.
+.SH "CONFIGURATION FILE FORMAT"
+.sp
+The configuration format supports the following keywords:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+debug = <debuglevel>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Where debuglevel is an integer equal or larger than 0\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+device = <type>,<path>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Where type is an integer representing the device type and path the path to the device to monitor\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+description = <desc>,<path>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Where desc is the path to a device file description and path the path to the device to monitor\&.
+.sp
+wdaemon\(cqs parser is simple and the spaces in the configuration file must be exactly as above\&. That is, no space at the beginning of the line, a space before and after the = sign and no spaces elsewhere\&.
+.SH "ENVIRONMENT VARIABLES"
+.PP
+UINPUT_DEVICE
+.RS 4
+Specifies the path to the uinput kernel device\&.
+.RE
+.SH "VERSION"
+.sp
+0\&.17
+.SH "AUTHORS"
+.sp
+This man page was written by Peter Hutterer <\m[blue]\fBpeter\&.hutterer@redhat\&.com\fR\m[]\&\s-2\u[1]\d\s+2> based on the README provided by wdaemon\&.
+.SH "SEE ALSO"
+.sp
+xorg\&.conf(5), wacom(4)
+.SH "NOTES"
+.IP " 1." 4
+peter.hutterer@redhat.com
+.RS 4
+\%mailto:peter.hutterer@redhat.com
+.RE

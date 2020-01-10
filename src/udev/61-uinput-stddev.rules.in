@@ -1,0 +1,1 @@
+KERNEL=="event*", PROGRAM=="@UDEVDIR@/wdaemon_is_uinput.sh", RESULT=="0000*", SYMLINK+="input/uinput-devices/uinput-keyboard-%c", ENV{ID_INPUT.tags}="wdaemon-device"

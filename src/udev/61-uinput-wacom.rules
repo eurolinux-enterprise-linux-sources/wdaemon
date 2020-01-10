@@ -1,0 +1,6 @@
+# udev rules for uinput wacom devices
+# will create:
+#	/dev/input/uinput-<model>-tabletX
+#
+KERNEL=="event*", PROGRAM=="/lib/udev/wdaemon_is_uinput.sh wacom", SYMLINK+="input/uinput-devices/uinput-wacom-%c-tablet", ENV{ID_INPUT.tags}="wdaemon-device"
+

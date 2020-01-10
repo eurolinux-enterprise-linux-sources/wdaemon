@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+#	@sysconfdir@/rc.d/init.d/wdaemon
+#
+# Starts the wdaemon
+#
+# chkconfig: - 95 5
+# description: helps X.org to support Wacom tablets hotplugging by creating \
+#    permanent uinput devices that may be feeded by real tablets events while \
+#    the hardware is present.
+# processname: wdaemon
+
+# Source function library.
+. @sysconfdir@/init.d/functions
+
+test -x @bindir@/wdaemon || exit 0
+
+RETVAL=0
+
+#
+#	See how we were called.
+#
+
+prog="wdaemon"
+
+start() {
+	# Check if there's already a configuration present
+	if [ ! -f @sysconfdir@/wdaemon.conf ]; then
+	    echo "wdaemon configuration file not present yet";
+	    return 0;
+	fi
+	# Check if wdaemon is already running
+	if [ ! -f @localstatedir@/lock/subsys/wdaemon ]; then
+	    if [ -z "$(lsmod | grep uinput)" ]; then
+	       echo -n $"Loading uinput module: "
+	       modprobe uinput;
+	       RETVAL=$?
+	       [ $RETVAL -eq 0 ] && success || (failure; return $RETVAL);
+	       echo;
+            fi
+	    echo -n $"Starting $prog: "
+	    daemon @bindir@/wdaemon -s -c @sysconfdir@/wdaemon.conf -f;
+	    RETVAL=$?
+	    [ $RETVAL -eq 0 ] && (success; touch @localstatedir@/lock/subsys/wdaemon) || failure;
+	    echo
+	fi
+	return $RETVAL
+}
+
+stop() {
+	echo -n $"Stopping $prog: "
+	killproc @bindir@/wdaemon
+	RETVAL=$?
+	[ $RETVAL -eq 0 ] && rm -f @localstatedir@/lock/subsys/wdaemon
+	echo
+        return $RETVAL
+}
+
+
+restart() {
+	stop
+	start
+}
+
+reload() {
+	restart
+}
+
+status_at() {
+ 	status @bindir@/wdaemon
+}
+
+case "$1" in
+start)
+	start
+	;;
+stop)
+	stop
+	;;
+reload|restart)
+	restart
+	;;
+condrestart)
+	if [ -f @localstatedir@/lock/subsys/wdaemon ]; then
+	    restart
+	fi
+	;;
+status)
+	status_at
+	;;
+*)
+	echo $"Usage: $0 {start|stop|restart|condrestart|status}"
+	exit 1
+esac
+
+exit $?
+exit $RETVAL
