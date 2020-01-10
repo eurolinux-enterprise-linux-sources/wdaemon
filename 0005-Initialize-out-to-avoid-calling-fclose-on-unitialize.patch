@@ -1,0 +1,27 @@
+From be213c6efa64ebe191b38791e61a3c011ed0b39c Mon Sep 17 00:00:00 2001
+From: Peter Hutterer <peter.hutterer@who-t.net>
+Date: Tue, 23 Aug 2011 10:04:09 +1000
+Subject: [PATCH 5/6] Initialize "out" to avoid calling fclose() on
+ unitialized value
+
+Signed-off-by: Peter Hutterer <peter.hutterer@who-t.net>
+---
+ evemu.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/evemu.c b/evemu.c
+index d0d2884..b136451 100644
+--- a/evemu.c
++++ b/evemu.c
+@@ -47,7 +47,7 @@ int evemu_extract_device(struct session *session, const char *path, const char *
+ {
+ 	int rc = 1;
+ 	int in = 0; /* input device */
+-	FILE *out;
++	FILE *out = NULL;
+ 	struct evemu_device *dev = NULL;
+ 
+ 	in = open(path, O_RDWR);
+-- 
+1.7.6.4
+

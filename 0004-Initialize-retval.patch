@@ -1,0 +1,29 @@
+From 3e137d6f5b1295d5fd7f5abee0733be036ad50a1 Mon Sep 17 00:00:00 2001
+From: Peter Hutterer <peter.hutterer@who-t.net>
+Date: Tue, 23 Aug 2011 10:03:02 +1000
+Subject: [PATCH 4/6] Initialize retval.
+
+If an error occurs, we jump to error: then to out: and may return the
+uninitialized retval.
+
+Signed-off-by: Peter Hutterer <peter.hutterer@who-t.net>
+---
+ uinput.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/uinput.c b/uinput.c
+index c75796e..5f3a2d2 100644
+--- a/uinput.c
++++ b/uinput.c
+@@ -62,7 +62,7 @@ int uinput_create(struct uinput_info *info)
+ {
+ 	struct uinput_user_dev dev;
+ 	char file[50], *tmp;
+-	int retval;
++	int retval = -1;
+ 	int need_init = 0;
+ 
+ 	tmp = getenv("UINPUT_DEVICE");
+-- 
+1.7.6.4
+

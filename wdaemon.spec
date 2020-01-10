@@ -2,7 +2,7 @@
 
 Name:		wdaemon
 Version:	0.17
-Release:	2%{?dist}
+Release:	5%{?dist}
 Summary:	Hotplug helper for Wacom X.org driver
 
 Group:		User Interface/X
@@ -15,6 +15,14 @@ Source1:        http://launchpad.net/utouch-evemu/trunk/v1.0.6/+download/%{evemu
 
 # RHEL6-special: needed to build evemu as static lib in subdir of wdaemon 
 Patch001:       0001-Build-evemu-as-subdir-of-wdaemon.patch
+
+Patch002: 0001-Fix-resouce-leak-in-evemu_load_device.patch
+Patch003: 0002-Fix-resource-leaks-in-add_device.patch
+Patch004: 0003-Fix-size-of-memset.patch
+Patch005: 0004-Initialize-retval.patch
+Patch006: 0005-Initialize-out-to-avoid-calling-fclose-on-unitialize.patch
+Patch007: 0006-Reset-devices-to-NULL-after-free.patch
+Patch008: 0001-Add-Intuos5-support.patch
 
 # wacom driver doesn't exist on those
 ExcludeArch:    s390 s390x
@@ -31,6 +39,13 @@ BuildRequires:  libudev-devel
 # wdaemon
 %setup -q 
 %patch001 -p1 -b .build-evemu-as-subdir
+%patch002 -p1
+%patch003 -p1
+%patch004 -p1
+%patch005 -p1
+%patch006 -p1
+%patch007 -p1
+%patch008 -p1
 
 # evemu
 %setup -T -a1 -D -q
@@ -76,7 +91,7 @@ fi
 
 %postun
 if [ $1 -ge 1 ]; then
-	/sbin/service %{wdaemon} condrestart >dev/null 2>&1
+	/sbin/service %{name} condrestart >dev/null 2>&1
 fi
 
 %files
@@ -92,6 +107,16 @@ fi
 %config %{_sysconfdir}/rc.d/init.d/wdaemon
 
 %changelog
+* Fri Aug 24 2012 Peter Hutterer <peter.hutterer@redhat.com> 0.17-5
+- Add support for Intuos5 pen-only devices (838752)
+- Fix broken %postun
+
+* Thu Aug 23 2012 Peter Hutterer <peter.hutterer@redhat.com> 0.17-4
+- Add Intuos5 support (#838752)
+
+* Tue Oct 11 2011 Peter Hutterer <peter.hutterer@redhat.com> 0.17-3
+- Fix resource leaks (#731979)
+
 * Tue Jul 26 2011 Peter Hutterer <peter.hutterer@redhat.com> 0.17-2
 - Add %{?dist} to the release string.
 

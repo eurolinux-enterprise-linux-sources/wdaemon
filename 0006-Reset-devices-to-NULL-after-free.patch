@@ -1,0 +1,27 @@
+From 5e17621e440de71e891c4c0616a0bb08724d0bf7 Mon Sep 17 00:00:00 2001
+From: Peter Hutterer <peter.hutterer@who-t.net>
+Date: Tue, 23 Aug 2011 10:05:16 +1000
+Subject: [PATCH 6/6] Reset devices to NULL after free()
+
+Otherwise, we may returned freed memory.
+
+Signed-off-by: Peter Hutterer <peter.hutterer@who-t.net>
+---
+ monitored.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/monitored.c b/monitored.c
+index 3f90368..3e7eda8 100644
+--- a/monitored.c
++++ b/monitored.c
+@@ -87,6 +87,7 @@ free_device:
+ 	free(devices->device);
+ free_devices:
+ 	free(devices);
++	devices = NULL;
+ 	goto out;
+ }
+ 
+-- 
+1.7.6.4
+

@@ -1,0 +1,170 @@
+From e3e04375d7152c41f93b90af53e8999f5c548c0e Mon Sep 17 00:00:00 2001
+From: Peter Hutterer <peter.hutterer@who-t.net>
+Date: Wed, 22 Aug 2012 11:45:31 +1000
+Subject: [PATCH wdaemon] Add Intuos5 support
+
+The touch device uses a slot protocol, if ABS_MT_SLOT isn't defined (this
+was the latest addition to the kernel, so if it's there the others are there
+too) then don't create the various touch bits, it's likely to mess up the
+event stream.
+
+Signed-off-by: Peter Hutterer <peter.hutterer@who-t.net>
+---
+ wacom.c | 95 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 91 insertions(+), 4 deletions(-)
+
+diff --git a/wacom.c b/wacom.c
+index 67f75d4..4ec3290 100644
+--- a/wacom.c
++++ b/wacom.c
+@@ -95,6 +95,10 @@ enum {
+ 	INTUOS4L,
+ 	WACOM_21UX2,
+ 	DTU,
++	INTUOS5S,
++	INTUOS5M,
++	INTUOS5L,
++	INTUOS5_FG,
+ 	MAX_TYPE
+ };
+ 
+@@ -169,6 +173,14 @@ static struct wacom_features {
+ 	{ "Wacom Cintiq 21UX2",   87200, 65600, 2047, 63, WACOM_21UX2,0xCC },
+ 	{ "Wacom DTU1631",        34623, 19553, 511,   0, DTU,        0xF0 },
+ 	{ "Wacom DTU2231",        47864, 27011, 511,   0, DTU,        0xCE },
++	{ "Wacom Intuos5 touch S Pen",    31496, 19685, 2047, 63, INTUOS5S,   0x26},
++	{ "Wacom Intuos5 touch S Finger",  4096,  4096,    0,  0, INTUOS5_FG, 0x26},
++	{ "Wacom Intuos5 touch M Pen",    44704, 27940, 2047, 63, INTUOS5M,   0x27},
++	{ "Wacom Intuos5 touch M Finger",  4096,  4096,    0,  0, INTUOS5_FG, 0x27},
++	{ "Wacom Intuos5 touch L Pen",    65024, 40640, 2047, 63, INTUOS5L,   0x28},
++	{ "Wacom Intuos5 touch L Finger",  4096,  4096,    0,  0, INTUOS5_FG, 0x28},
++	{ "Wacom Intuos5 S Pen",          31496, 19685, 2047, 63, INTUOS5S,   0x29},
++	{ "Wacom Intuos5 M Pen",          44704, 27940, 2047, 63, INTUOS5M,   0x2A},
+ };
+ #define WACOM_N_TABLETS (sizeof(wacom_features)/sizeof(wacom_features[0]))
+ int wacom_check_type(int x)
+@@ -190,6 +202,27 @@ static int wacom_set_events(struct uinput_info *info, struct uinput_user_dev *de
+ 	set_event(info, UI_SET_EVBIT, EV_KEY);
+ 	set_event(info, UI_SET_EVBIT, EV_ABS);
+ 
++	/* touch devices don't have the common features of others */
++	switch(features->type) {
++	case INTUOS5_FG:
++		set_event(info, UI_SET_ABSBIT, ABS_X);
++		set_event(info, UI_SET_ABSBIT, ABS_Y);
++#ifdef ABS_MT_SLOT
++		set_event(info, UI_SET_ABSBIT, ABS_MT_SLOT);
++		set_event(info, UI_SET_ABSBIT, ABS_MT_TOUCH_MAJOR);
++		set_event(info, UI_SET_ABSBIT, ABS_MT_POSITION_X);
++		set_event(info, UI_SET_ABSBIT, ABS_MT_POSITION_Y);
++		set_event(info, UI_SET_ABSBIT, ABS_MT_TRACKING_ID);
++#endif
++		set_event(info, UI_SET_KEYBIT, BTN_TOOL_FINGER);
++		set_event(info, UI_SET_KEYBIT, BTN_TOOL_DOUBLETAP);
++		set_event(info, UI_SET_KEYBIT, BTN_TOOL_TRIPLETAP);
++		set_event(info, UI_SET_KEYBIT, BTN_TOOL_QUADTAP);
++		set_event(info, UI_SET_KEYBIT, BTN_TOUCH);
++		return 0;
++	}
++
++
+ 	set_event(info, UI_SET_KEYBIT, BTN_TOOL_PEN);
+ 	set_event(info, UI_SET_KEYBIT, BTN_TOUCH);
+ 	set_event(info, UI_SET_KEYBIT, BTN_STYLUS);
+@@ -300,6 +333,20 @@ static int wacom_set_events(struct uinput_info *info, struct uinput_user_dev *de
+ 		set_event(info, UI_SET_KEYBIT, BTN_5);
+ 		set_event(info, UI_SET_KEYBIT, BTN_6);
+ 		break;
++	case INTUOS5M:
++	case INTUOS5L:
++		set_event(info, UI_SET_KEYBIT, BTN_7);
++		set_event(info, UI_SET_KEYBIT, BTN_8);
++	case INTUOS5S:
++		set_event(info, UI_SET_ABSBIT, ABS_Z);
++		set_event(info, UI_SET_KEYBIT, BTN_0);
++		set_event(info, UI_SET_KEYBIT, BTN_1);
++		set_event(info, UI_SET_KEYBIT, BTN_2);
++		set_event(info, UI_SET_KEYBIT, BTN_3);
++		set_event(info, UI_SET_KEYBIT, BTN_4);
++		set_event(info, UI_SET_KEYBIT, BTN_5);
++		set_event(info, UI_SET_KEYBIT, BTN_6);
++		break;
+ 	}
+ 
+ 	set_event(info, UI_SET_EVBIT, EV_KEY);
+@@ -315,7 +362,10 @@ static int wacom_set_events(struct uinput_info *info, struct uinput_user_dev *de
+ 	set_event(info, UI_SET_KEYBIT, BTN_TOOL_RUBBER);
+ 	set_event(info, UI_SET_KEYBIT, BTN_TOOL_MOUSE);
+ 	set_event(info, UI_SET_KEYBIT, BTN_TOOL_LENS);
+-	set_event(info, UI_SET_KEYBIT, BTN_TOOL_FINGER);
++	if (features->type != INTUOS5S &&
++		features->type != INTUOS5M &&
++		features->type != INTUOS5L)
++		set_event(info, UI_SET_KEYBIT, BTN_TOOL_FINGER);
+ 	set_event(info, UI_SET_KEYBIT, BTN_TOUCH);
+ 	set_event(info, UI_SET_KEYBIT, BTN_STYLUS);
+ 	set_event(info, UI_SET_KEYBIT, BTN_STYLUS2);
+@@ -331,13 +381,20 @@ static int wacom_set_events(struct uinput_info *info, struct uinput_user_dev *de
+ 	set_event(info, UI_SET_KEYBIT, BTN_4);
+ 	set_event(info, UI_SET_KEYBIT, BTN_5);
+ 	set_event(info, UI_SET_KEYBIT, BTN_6);
+-	set_event(info, UI_SET_KEYBIT, BTN_7);
++	if (features->type != INTUOS5S &&
++		features->type != INTUOS5M &&
++		features->type != INTUOS5L)
++		set_event(info, UI_SET_KEYBIT, BTN_7);
+ 	set_event(info, UI_SET_KEYBIT, BTN_MIDDLE);
+ 
+ 	set_event(info, UI_SET_ABSBIT, ABS_X);
+ 	set_event(info, UI_SET_ABSBIT, ABS_Y);
+-	set_event(info, UI_SET_ABSBIT, ABS_RX);
+-	set_event(info, UI_SET_ABSBIT, ABS_RY);
++	if (features->type != INTUOS5S &&
++		features->type != INTUOS5M &&
++		features->type != INTUOS5L) {
++		set_event(info, UI_SET_ABSBIT, ABS_RX);
++		set_event(info, UI_SET_ABSBIT, ABS_RY);
++	}
+ 	set_event(info, UI_SET_ABSBIT, ABS_RZ);
+ 	set_event(info, UI_SET_ABSBIT, ABS_TILT_X);
+ 	set_event(info, UI_SET_ABSBIT, ABS_TILT_Y);
+@@ -422,6 +479,36 @@ static int wacom_set_initial_values(struct uinput_info *info,
+ 	case INTUOS4L:
+ 		dev->absmin[ABS_Z] = -900;
+ 		dev->absmax[ABS_Z] = 899;
++		break;
++	case INTUOS5S:
++	case INTUOS5M:
++	case INTUOS5L:
++		dev->absfuzz[ABS_X] = 4;
++		dev->absfuzz[ABS_Y] = 4;
++		dev->absfuzz[ABS_Y] = 4;
++		dev->absmin[ABS_Z] = -900;
++		dev->absmax[ABS_Z] = 899;
++		dev->absmin[ABS_RZ] = -900;
++		dev->absmax[ABS_RZ] = 899;
++		dev->absmax[ABS_WHEEL] = 1023;
++		dev->absmax[ABS_TILT_X] = 127;
++		dev->absmax[ABS_TILT_Y] = 127;
++		dev->absmin[ABS_THROTTLE] = -1023;
++	        dev->absmax[ABS_THROTTLE] = 1023;
++		break;
++	case INTUOS5_FG:
++		dev->absfuzz[ABS_X] = 4;
++		dev->absfuzz[ABS_Y] = 4;
++#ifdef ABS_MT_SLOT
++		dev->absmax[ABS_MT_SLOT] = 15;
++		dev->absmax[ABS_MT_TOUCH_MAJOR] = 255;
++		dev->absmax[ABS_MT_POSITION_X] = 4096;
++		dev->absfuzz[ABS_MT_POSITION_X] = 4;
++		dev->absmax[ABS_MT_POSITION_Y] = 4096;
++		dev->absfuzz[ABS_MT_POSITION_Y] = 4;
++		dev->absmax[ABS_MT_TRACKING_ID] = 65535;
++#endif
++		break;
+ 	}
+ 
+ 	return uinput_write_dev(info, dev);
+-- 
+1.7.11.2
+

@@ -1,0 +1,72 @@
+From 3c15a2a662d387fbe219cb742dedebfac176d57f Mon Sep 17 00:00:00 2001
+From: Peter Hutterer <peter.hutterer@who-t.net>
+Date: Tue, 23 Aug 2011 09:43:15 +1000
+Subject: [PATCH 2/6] Fix resource leaks in *add_device
+
+If hotplug_add_device fails, priv leaks memory
+
+Signed-off-by: Peter Hutterer <peter.hutterer@who-t.net>
+---
+ stddev.c |    8 ++++++--
+ wacom.c  |    9 +++++++--
+ 2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/stddev.c b/stddev.c
+index 411c2cb..8c971f7 100644
+--- a/stddev.c
++++ b/stddev.c
+@@ -192,8 +192,10 @@ int keyboard_add_device(struct session *session, char *path, int type)
+ 	priv->type = type;
+ 
+ 	rc = hotplug_add_file(session, path);
+-	if (rc)
++	if (rc) {
++		free(priv);
+ 		return rc;
++	}
+ 
+ 	return monitored_device_add(session->devices, keyboard_init, priv, path);
+ }
+@@ -256,8 +258,10 @@ int mouse_add_device(struct session *session, char *path, int type)
+ 	priv->type = type;
+ 
+ 	rc = hotplug_add_file(session, path);
+-	if (rc)
++	if (rc) {
++		free(priv);
+ 		return rc;
++	}
+ 
+ 	return monitored_device_add(session->devices, mouse_init, priv, path);
+ }
+diff --git a/wacom.c b/wacom.c
+index 89f1da6..67f75d4 100644
+--- a/wacom.c
++++ b/wacom.c
+@@ -51,16 +51,21 @@ int add_wacom_device(struct session *session, char *path, int type)
+ 	if (wacom_check_type(type)) {
+ 		log(LOG_ERR, "Invalid wacom type: %i, use -w to get a "
+ 		    "list\n", type);
+-		return EINVAL;
++		rc = EINVAL;
++		goto error;
+ 	}
+ 
+ 	priv->type = type;
+ 
+ 	rc = hotplug_add_file(session, path);
+ 	if (rc)
+-		return rc;
++		goto error;
+ 
+ 	return monitored_device_add(session->devices, wacom_init, priv, path);
++
++error:
++	free(priv);
++	return rc;
+ }
+ 
+ #define set_event(x, y, z) do { if (ioctl((x)->fd, (y), (z)) == -1) { \
+-- 
+1.7.6.4
+

@@ -1,0 +1,29 @@
+From f60d06d026677083046b74584182afd19cd25e9e Mon Sep 17 00:00:00 2001
+From: Peter Hutterer <peter.hutterer@who-t.net>
+Date: Tue, 23 Aug 2011 09:52:39 +1000
+Subject: [PATCH 3/6] Fix size of memset
+
+Instead of initializing the whole uds array, memset would only set the first
+4 bytes
+
+Signed-off-by: Peter Hutterer <peter.hutterer@who-t.net>
+---
+ input.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/input.c b/input.c
+index 2844b6a..e68e583 100644
+--- a/input.c
++++ b/input.c
+@@ -146,7 +146,7 @@ int input_poll(struct session *session)
+ 	int retval, i, j;
+ 	short events;
+ 
+-	memset(devices->ufds, 0, sizeof(devices->ufds));
++	memset(devices->ufds, 0, devices->size * sizeof(*devices->ufds));
+ 	for (i = 0, j = 1; i < devices->count; i++) {
+ 		dev = &devices->device[i];
+ 
+-- 
+1.7.6.4
+

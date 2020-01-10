@@ -1,0 +1,61 @@
+From 1b0dbae08dbe06c83d02f5ec052376ad6f619bf5 Mon Sep 17 00:00:00 2001
+From: Peter Hutterer <peter.hutterer@who-t.net>
+Date: Tue, 23 Aug 2011 09:37:18 +1000
+Subject: [PATCH 1/6] Fix resouce leak in evemu_load_device
+
+Signed-off-by: Peter Hutterer <peter.hutterer@who-t.net>
+---
+ evemu.c |   18 ++++++++++++------
+ 1 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/evemu.c b/evemu.c
+index 2dab468..d0d2884 100644
+--- a/evemu.c
++++ b/evemu.c
+@@ -147,18 +147,18 @@ int evemu_load_device(struct session *session,
+ 	if (!in) {
+ 		fprintf(stderr, "Failed to open path '%s': %s\n",
+ 			input_file, strerror(errno));
+-		goto out;
++		goto error;
+ 	}
+ 
+ 	dev = evemu_new(NULL);
+ 	if (!dev) {
+ 		fprintf(stderr, "Failed to create evemu device.\n");
+-		goto out;
++		goto error;
+ 	}
+ 
+ 	if (evemu_read(dev, in) <= 0) {
+ 		fprintf(stderr, "Failed to read device data.\n");
+-		goto out;
++		goto error;
+ 	}
+ 
+ 	memset(name, 0, sizeof(name));
+@@ -173,12 +173,18 @@ int evemu_load_device(struct session *session,
+ 
+ 	rc = hotplug_add_file(session, path);
+ 	if (rc)
+-		goto out;
+-out:
++		goto error;
++
++	fclose(in);
++	return monitored_device_add(session->devices, evemu_init, dev, path);
++
++error:
+ 	if (in)
+ 		fclose(in);
++	if (dev)
++		evemu_delete(dev);
++	return 1;
+ 
+-	return !rc ? monitored_device_add(session->devices, evemu_init, dev, path) : rc;
+ }
+ 
+ int add_device_desc(struct session *session, char *path, char *desc)
+-- 
+1.7.6.4
+
